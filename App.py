@@ -13,23 +13,23 @@ def process_text_file(uploaded_file):
             continue
         
         if capture_data and re.match(r"^\d+", line.strip()):
-            container_no = line[0:20].strip()
-            item_no = line[21:27].strip()
-            cut_width = line[28:33].strip()
-            fabric_lot = line[34:41].strip()
-            finish_color = line[42:48].strip()
-            status = line[49:56].strip()
-            mach_no = line[57:64].strip() or ""
-            bin_row = line[65:75].strip()
-            finish_date = line[76:86].strip()
-            finish_lbs = line[87:97].strip()
-            finish_yds = line[98:104].strip()
-            dye_lot = line[105:108].strip()
-            grd = line[109:114].strip()
-            last_act_date = line[115:120].strip()
-            wo_no = line[121:124].strip()
-            print_code = line[125:132].strip()
-            shipment = line[133:].strip()
+            container_no = line[0:21].strip()
+            item_no = line[22:28].strip()
+            cut_width = line[29:34].strip()
+            fabric_lot = line[35:42].strip()
+            finish_color = line[43:49].strip()
+            status = line[50:56].strip()
+            mach_no = line[57:65].strip() or ""
+            bin_row = line[66:73].strip()
+            finish_date = line[74:82].strip()
+            finish_lbs = line[83:93].strip()
+            finish_yds = line[94:105].strip()
+            dye_lot = line[106:115].strip()
+            grd = line[116:119].strip()
+            last_act_date = line[120:131].strip()
+            wo_no = line[132:136].strip()
+            print_code = line[137:143].strip()
+            shipment = line[144:].strip()
 
             data_list.append([
                 container_no, item_no, cut_width, fabric_lot, finish_color, status,

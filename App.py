@@ -13,8 +13,8 @@ def process_text_file(uploaded_file):
             continue
         
         if capture_data and re.match(r"^\d+", line.strip()):
-            container_no = line[0:19].strip()
-            item_no = line[20:27].strip()
+            container_no = line[0:18].strip()
+            item_no = line[19:27].strip()
             cut_width = line[28:34].strip()
             fabric_lot = line[35:42].strip()
             finish_color = line[43:49].strip()

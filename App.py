@@ -13,19 +13,19 @@ def process_text_file(uploaded_file):
             continue
         
         if capture_data and re.match(r"^\d+", line.strip()):
-            container_no = line[0:21].strip()
-            item_no = line[22:28].strip()
-            cut_width = line[29:34].strip()
+            container_no = line[0:19].strip()
+            item_no = line[20:27].strip()
+            cut_width = line[28:34].strip()
             fabric_lot = line[35:42].strip()
             finish_color = line[43:49].strip()
             status = line[50:56].strip()
-            mach_no = line[57:65].strip() or ""
-            bin_row = line[66:73].strip()
-            finish_date = line[74:82].strip()
+            mach_no = line[57:63].strip() or ""
+            bin_row = line[64:72].strip()
+            finish_date = line[73:82].strip()
             finish_lbs = line[83:93].strip()
             finish_yds = line[94:105].strip()
-            dye_lot = line[106:115].strip()
-            grd = line[116:119].strip()
+            dye_lot = line[106:116].strip()
+            grd = line[117:119].strip()
             last_act_date = line[120:131].strip()
             wo_no = line[132:136].strip()
             print_code = line[137:143].strip()

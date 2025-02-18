@@ -45,3 +45,18 @@ def process_text_file(uploaded_file):
 
     df = pd.DataFrame(data_list, columns=columns)
     return df
+
+st.title("📄 Text File to Excel Converter")
+uploaded_file = st.file_uploader("📂 อัปโหลดไฟล์ .txt", type=["txt"])
+
+if uploaded_file is not None:
+    df = process_text_file(uploaded_file)
+    
+    st.write("📊 ข้อมูลที่ถูกแปลง:")
+    st.dataframe(df)
+
+    excel_file = "output.xlsx"
+    df.to_excel(excel_file, index=False)
+    
+    with open(excel_file, "rb") as file:
+        st.download_button("📥 ดาวน์โหลดไฟล์ Excel", file, file_name="output.xlsx")

@@ -26,8 +26,8 @@ def process_text_file(uploaded_file):
             finish_yds = line[94:104].strip()
             dye_lot = line[105:115].strip()
             grd = line[116:119].strip()
-            last_act_date = line[120:131].strip()
-            wo_no = line[132:136].strip()
+            last_act_date = line[120:129].strip()
+            wo_no = line[130:136].strip()
             print_code = line[137:143].strip()
             shipment = line[144:].strip()
 

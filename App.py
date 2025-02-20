@@ -20,8 +20,8 @@ def process_text_file(uploaded_file):
             finish_color = line[43:49].strip()
             status = line[50:56].strip()
             mach_no = line[57:62].strip() or ""
-            bin_row = line[63:71].strip()
-            finish_date = line[72:82].strip()
+            bin_row = line[63:70].strip()
+            finish_date = line[71:82].strip()
             finish_lbs = line[83:93].strip()
             finish_yds = line[94:104].strip()
             dye_lot = line[105:115].strip()

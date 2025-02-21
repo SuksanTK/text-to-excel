@@ -26,21 +26,20 @@ def process_text_file(uploaded_file):
             finish_yds = line[94:104].strip()
             dye_lot = line[105:115].strip()
             grd = line[116:118].strip()
-            last_act_date = line[119:129].strip()
-            wo_no = line[130:136].strip()
-            print_code = line[137:143].strip()
+            last_act_date = line[119:128].strip()
+            wo_no_print = line[129:136].strip()
             shipment = line[144:].strip()
 
             data_list.append([
                 container_no, item_no, cut_width, fabric_lot, finish_color, status,
                 mach_no, bin_row, finish_date, finish_lbs, finish_yds,
-                dye_lot, grd, last_act_date, wo_no, print_code, shipment
+                dye_lot, grd, last_act_date, wo_no_print, shipment
             ])
 
     columns = [
         "CONTAINER NO.", "ITEM NO.", "CUT WIDTH", "FABRIC LOT", "FINISH COLOR",
         "STATUS", "MACH NO.", "BIN/ROW", "FINISH DATE", "FINISH LBS",
-        "FINISH YDS", "DYE LOT", "GRD", "LAST ACT DATE", "WO #", "PRINT CODE", "SHIPMENT"
+        "FINISH YDS", "DYE LOT", "GRD", "LAST ACT DATE", "WO #PRINT CODE", "SHIPMENT"
     ]
 
     df = pd.DataFrame(data_list, columns=columns)

@@ -93,10 +93,10 @@ with tab1:
 
         if format_type == 1:
             df_wh = process_text_file_wh_format1(lines)
-            format_label = "WH Format 1"
+            format_label = "Inventory on hand"
         elif format_type == 2:
             df_wh = process_text_file_wh_format2(lines)
-            format_label = "WH Format 2"
+            format_label = "Transfer Packing list"
         else:
             st.error("⚠️ No supported formats found for this file!") 
             df_wh = None

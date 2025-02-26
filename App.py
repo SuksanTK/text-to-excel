@@ -93,10 +93,10 @@ with tab1:
 
         if format_type == 1:
             df_wh = process_text_file_wh_format1(lines)
-            format_label = "Inventory on hand"
+            format_label = "WH Format 1"
         elif format_type == 2:
             df_wh = process_text_file_wh_format2(lines)
-            format_label = "Packing list"
+            format_label = "WH Format 2"
         else:
             st.error("⚠️ No supported formats found for this file!") 
             df_wh = None
@@ -126,7 +126,6 @@ with tab2:
 
         with open(excel_file_cutting, "rb") as file:
             st.download_button("📥 Download Cutting (Excel)", file, file_name="Cutting_output.xlsx")
-
 
 
     

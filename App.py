@@ -1,9 +1,14 @@
-import streamlit as st
 import pandas as pd
-import re
+import re 
 
-def process_text_file(uploaded_file):
-    lines = uploaded_file.read().decode("utf-8").split("\n")
+def detect_format_wh(line):
+    for line in lines:
+        if "CONTAINER" in line and "ITEM" in line:
+            return 1
+        elif "Item" in line and "Cyl" in line:
+            return 2
+        return None
+def process_text_file_wh_format1(lines):
     data_list = []
     capture_data = False
 
@@ -12,9 +17,9 @@ def process_text_file(uploaded_file):
             capture_data = True
             continue
         
-        if capture_data and re.match(r"^\d+", line.strip()):
+        if capture_data and re.match(r"^\d+",line.strip()):
             container_no = line[0:18].strip()
-            item_no = line[19:25].strip()
+            item_no = line [19:25].strip()
             cut_width = line[26:34].strip()
             fabric_lot = line[35:42].strip()
             finish_color = line[43:49].strip()
@@ -23,7 +28,7 @@ def process_text_file(uploaded_file):
             bin_row = line[63:70].strip()
             finish_date = line[71:82].strip()
             finish_lbs = line[83:93].strip()
-            finish_yds = line[94:104].strip()
+            finish_yds = line[91:104].strip()
             dye_lot = line[105:115].strip()
             grd = line[116:118].strip()
             last_act_date = line[119:128].strip()
@@ -31,31 +36,53 @@ def process_text_file(uploaded_file):
             shipment = line[144:].strip()
 
             data_list.append([
-                container_no, item_no, cut_width, fabric_lot, finish_color, status,
-                mach_no, bin_row, finish_date, finish_lbs, finish_yds,
-                dye_lot, grd, last_act_date, wo_no_print, shipment
+                container_no,item_no,cut_width,fabric_lot,finish_color,status,mach_no,bin_row,finish_date,
+                finish_lbs,finish_yds,dye_lot,grd,last_act_date,wo_no_print,shipment
             ])
 
-    columns = [
-        "CONTAINER NO.", "ITEM NO.", "CUT WIDTH", "FABRIC LOT", "FINISH COLOR",
-        "STATUS", "MACH NO.", "BIN/ROW", "FINISH DATE", "FINISH LBS",
-        "FINISH YDS", "DYE LOT", "GRD", "LAST ACT DATE", "WO #PRINT CODE", "SHIPMENT"
-    ]
+            columns = ["CONTEAIER NO", "ITEM NO", "CUT WIDTH", "FABRIC LOT", "FABRIC LOT", "FINISH COLOR", "STATUS",
+                       "MACH NO", "BIN ROW", "FINISH DATE", "FINISH LBS", "FINISH YDS", "DYE LOT", "GRD", "LAST ACT DATE",
+                       "WO #PRINT", "SHIPMENT"]
+            
+            return pd.DataFrame(data_list, columns=columns)
+        
+def process_text_file_wh_fomat2(lines):
+    data_list = []
+    capture_data = False
 
-    df = pd.DataFrame(data_list, columns=columns)
-    return df
+    for line in lines:
+        if "Item" in line and "Cyl" in line:
+            capture_data = True
+            continue
 
-st.title("📄 Text File to Excel Converter")
-uploaded_file = st.file_uploader("📂 อัปโหลดไฟล์ .txt", type=["txt"])
+        if capture_data and re.match(r"^\w+\s+\d+\s+\w+\s+\w+\s+\d+\s+\d+\.\d+",line.strip()):
+            parts = re.split(r"\s+",line.strip(),maxsplit=11)
 
-if uploaded_file is not None:
-    df = process_text_file(uploaded_file)
+            if len(parts) >= 11:
+                item_no = parts[0]
+                cyl = parts[1]
+                lot = parts[2]
+                color = parts[3]
+                grade = parts[4]
+                cut_width = parts[5]
+                container = parts[6]
+                net_weight = parts[7]
+                tare_weight = parts[8]
+                gross_weight = parts[9]
+                yds = parts[10]
+                pallet_id = parts[11] if len(parts) > 11 else ""
+
+                data_list.append([item_no,cyl,lot,color,grade,cut_width,container,net_weight,tare_weight,gross_weight
+                                  , yds,pallet_id])
+
+                columns =[
+                    "ITEM", "CYL", "LOT", "COL", "G", "CUT WIDTH", "CONTAINER", "NET WEIGHT", "TARE WEIGTH",
+                    "GROSS WEIGHT", "YDS", "PALLET ID"]
+                
+                return pd.DataFrame(data_list,columns=columns)
+st.title()
+            
+
+
+
     
-    st.write("📊 ข้อมูลที่ถูกแปลง:")
-    st.dataframe(df)
-
-    excel_file = "output.xlsx"
-    df.to_excel(excel_file, index=False)
-    
-    with open(excel_file, "rb") as file:
-        st.download_button("📥 ดาวน์โหลดไฟล์ Excel", file, file_name="output.xlsx")

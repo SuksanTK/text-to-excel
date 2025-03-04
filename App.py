@@ -98,8 +98,7 @@ def process_cutting_files(file_paths):
                 lines = content.splitlines()
 
             data = []
-            part_std_yardage = {}  # Will store part name to std yardage mapping
-
+            
             # Extract basic document-level information
             assort_order_match = re.search(r'ASSORTMENT ORDER:\s*(\d+)', content) or re.search(r'ASSORTMENT ORDER\s*(\d+)', content)
             assort_order = assort_order_match.group(1)[:6] if assort_order_match else "N/A"
@@ -107,10 +106,10 @@ def process_cutting_files(file_paths):
             cut_lot_match = re.search(r'CUT W/O #:\s*(\d+)', content) or re.search(r'CUT W/O #\s*(\d+)', content)
             cut_lot = cut_lot_match.group(1)[:6] if cut_lot_match else "N/A"
             
-            style_match = re.search(r'STYLE:\s*(\S+)', content) or re.search(r'STYLE\s*(\S+)', content)
-            style_code = style_match.group(1)[:6] if style_match else "N/A"
+            style_match = re.search(r'STYLE:\s*([^\s]+\s+[^\s]+\s+[^\s]+\s+[^\s]+)', content) or re.search(r'STYLE\s*([^\s]+\s+[^\s]+\s+[^\s]+\s+[^\s]+)', content)
+            style_code = style_match.group(1)[:6].strip() if style_match else "N/A"
             
-            sizes_match = re.search(r'SIZES  :\s*(\d+)', content) or re.search(r'SIZES\s*(\d+)', content)
+            sizes_match = re.search(r'SIZES\s*:\s*(\d+)', content) or re.search(r'SIZES\s*(\d+)', content)
             sizes_code = sizes_match.group(1)[:2] if sizes_match else "N/A"
             
             color_match = re.search(r'COLOR:\s*(\S+)', content)
@@ -119,116 +118,201 @@ def process_cutting_files(file_paths):
             req_doz_match = re.search(r'REQ DOZ:\s*(\d+)', content)
             req_doz = int(req_doz_match.group(1)) if req_doz_match else None
             
-            proto_match = re.search(r'Proto:\s*(.+?)(?=\s{2,}|\n)', content)
-            proto = proto_match.group(1).strip() if proto_match else "N/A"
+            # เก็บ proto ทั้งหมดไว้ในตัวแปร full_proto
+            proto_full_match = re.search(r'Proto:\s*(.+?)(?=\s{2,}|\n)', content)
+            full_proto = proto_full_match.group(1).strip() if proto_full_match else "N/A"
+            
+            # ดึงเฉพาะตัวเลข 5 หลักจาก proto สำหรับใช้ในการแมทช์
+            proto_digits_match = re.search(r'(\d{5})', full_proto)
+            proto_five_digit = proto_digits_match.group(1) if proto_digits_match else None
 
-            # First pass: Find all part names and their STD yardage values
-            current_part = None
-            for i, line in enumerate(lines):
-                # Look for part name lines
-                part_match1 = re.search(r'T\d+\w\d+\s+\d+\s+(.+)$', line)
-                part_match2 = re.search(r'^\s*\d+\s+(.+)$', line)
-                
-                if part_match1:
-                    current_part = part_match1.group(1).strip()
-                elif part_match2 and not line.strip().startswith("TOTALS"):
-                    current_part = part_match2.group(1).strip()
-                
-                # Look for the yardage info line that follows part names
-                # Pattern looks for something like: 57     237     56.9         237     56.9"
-                if current_part and i < len(lines) - 1:
-                    next_line = lines[i+1].strip()
-                    # Try to extract the standard yardage value (first number in the series)
-                    std_yds_match = re.match(r'^\s*(\d+)(?:\s+\d+\s+\d+\.?\d*)?', next_line)
-                    if std_yds_match:
-                        part_std_yardage[current_part] = std_yds_match.group(1)
-                        current_part = None  # Reset current part
-
-            # Second pass: Find fabric and part sections
+            # First pass: Find parts and their data
             i = 0
-            while i < len(lines) - 2:
+            current_fabric = None
+            current_width = None
+            current_item = None
+            current_col = None
+            current_trim_info = None
+            
+            # Store all valid part names we find
+            valid_part_names = {}
+            
+            while i < len(lines):
                 line = lines[i].strip()
                 
-                # Look for line that starts with "01" followed by width, item, col
-                fabric_match = re.match(r'^\s*01\s+(\d+\.\d+)\s+(\w+)\s+(\w+)', line)
-                
+                # Look for fabric info line (starting with "01")
+                fabric_match = re.match(r'^\s*01\s+(\d+\.?\d*)\s+(\w+)\s+(\w+)', line)
                 if fabric_match:
-                    width = fabric_match.group(1)
-                    item = fabric_match.group(2)
-                    col = fabric_match.group(3)
+                    current_width = fabric_match.group(1)
+                    current_item = fabric_match.group(2)
+                    current_col = fabric_match.group(3)
                     
-                    # Next line should contain Trim Width and Lbs/Doz info
-                    trim_line = lines[i+1].strip() if i+1 < len(lines) else ""
-                    trim_width = "N/A"
-                    lbs_doz = "N/A"
-                    
-                    trim_width_match = re.search(r'Trim Width:\s*(.+?)(?=\s{2,}|$|\s+Lbs/Doz)', trim_line)
-                    if trim_width_match:
-                        trim_width = trim_width_match.group(1).strip()
-                    
-                    lbs_doz_match = re.search(r'Lbs/Doz:\s*(.+?)(?=\s{2,}|$)', trim_line)
-                    if lbs_doz_match:
-                        lbs_doz = lbs_doz_match.group(1).strip()
-                    
-                    # Third line should be the part name
-                    part_line = lines[i+2].strip() if i+2 < len(lines) else ""
-                    
-                    part_match1 = re.match(r'^T\d+\w\d+\s+\d+\s+(.+)$', part_line)
-                    part_match2 = re.match(r'^\s*\d+\s+(.+)$', part_line)
-                    
-                    part_name = None
-                    if part_match1:
-                        part_name = part_match1.group(1).strip()
-                    elif part_match2:
-                        part_name = part_match2.group(1).strip()
-                    
-                    if part_name:
-                        # Get standard yardage from our mapping
-                        std_yds = part_std_yardage.get(part_name, "N/A")
+                    # Get trim info from next line
+                    if i+1 < len(lines):
+                        trim_line = lines[i+1].strip()
+                        current_trim_info = trim_line
                         
-                        part_entry = {
-                            "Assortment Order": assort_order,
-                            "Lot": cut_lot,
-                            "Style": style_code,
-                            "Size": sizes_code,
-                            "Color Code": color_code,
-                            "Plan Qty": req_doz,
-                            "Proto": proto,
-                            "Item Fabric": item,
-                            "Fabric Color": col,
-                            "Width": width,
-                            "Part Name": part_name,
-                            "STD.(Yds.)": std_yds,
-                            "Trim Width": trim_width,
-                            "Lbs/Doz": lbs_doz
-
-                        }
-                        data.append(part_entry)
+                        # Extract trim width and lbs/doz
+                        trim_width = "N/A"
+                        lbs_doz = "N/A"
+                        
+                        trim_width_match = re.search(r'Trim Width:\s*(.+?)(?=\s{2,}|$|\s+Lbs/Doz)', trim_line)
+                        if trim_width_match:
+                            trim_width = trim_width_match.group(1).strip()
+                        
+                        lbs_doz_match = re.search(r'Lbs/Doz:\s*(.+?)(?=\s{2,}|$)', trim_line)
+                        if lbs_doz_match:
+                            lbs_doz = lbs_doz_match.group(1).strip()
+                
+                # Look for part name in various formats (with proto check)
+                # Format 1: Pattern ID + size + part name
+                part_match1 = re.match(r'^([A-Za-z0-9]+\w\d+\w?)\s+(\d+)\s+(.+)$', line)
+                # Format 2: Just size + part name
+                part_match2 = re.match(r'^\s*(\d+)\s+(.+)$', line)
+                
+                if part_match1 and not line.startswith('01'):
+                    pattern_id = part_match1.group(1)
+                    size = part_match1.group(2)
+                    part_name = part_match1.group(3).strip()
+                    
+                    # Check if this is a valid part name
+                    if is_valid_part_name(part_name):
+                        # ถ้ามี proto 5 หลัก ให้ตรวจสอบว่า pattern ID มี proto 5 หลักนั้นหรือไม่
+                        is_proto_matched = False
+                        if proto_five_digit:
+                            pattern_proto_match = re.search(r'(\d{5})', pattern_id)
+                            if pattern_proto_match and pattern_proto_match.group(1) == proto_five_digit:
+                                valid_part_names[pattern_id] = part_name
+                                is_proto_matched = True
+                        
+                        # Look for yardage in next line
+                        if i+1 < len(lines) and current_item is not None:
+                            yardage_line = lines[i+1].strip()
+                            yard_match = re.match(r'^\s*(\d+)', yardage_line)
+                            std_yds = yard_match.group(1) if yard_match else "N/A"
+                            
+                            part_entry = {
+                                "Assortment Order": assort_order,
+                                "Lot": cut_lot,
+                                "Style": style_code,
+                                "Size": sizes_code,
+                                "Color Code": color_code,
+                                "Plan Qty": req_doz,
+                                "Proto": full_proto,  # เก็บค่า proto ทั้งหมด
+                                "Proto Matched": is_proto_matched,  # เก็บข้อมูลว่าตรงกับ proto 5 หลักหรือไม่
+                                "Item Fabric": current_item,
+                                "Fabric Color": current_col,
+                                "Width": current_width,
+                                "Part Name": part_name,
+                                "STD.(Yds.)": std_yds,
+                                "Trim Width": trim_width,
+                                "Lbs/Doz": lbs_doz,
+                                "Pattern ID": pattern_id
+                            }
+                            data.append(part_entry)
+                
+                elif part_match2 and "TOTALS" not in line and not line.startswith('01') and current_item is not None:
+                    size = part_match2.group(1)
+                    part_name = part_match2.group(2).strip()
+                    
+                    # Check if this is a valid part name
+                    if is_valid_part_name(part_name):
+                        # สำหรับรูปแบบที่ 2 เราไม่มี pattern ID ให้ตรวจสอบกับ proto
+                        # เราจะเก็บข้อมูลเหล่านี้ไว้ แต่จะให้ความสำคัญกับข้อมูลที่ตรงกับ proto ในภายหลัง
+                        
+                        # Look for yardage in next line
+                        if i+1 < len(lines):
+                            yardage_line = lines[i+1].strip()
+                            yard_match = re.match(r'^\s*(\d+)', yardage_line)
+                            std_yds = yard_match.group(1) if yard_match else "N/A"
+                            
+                            part_entry = {
+                                "Assortment Order": assort_order,
+                                "Lot": cut_lot,
+                                "Style": style_code,
+                                "Size": sizes_code,
+                                "Color Code": color_code,
+                                "Plan Qty": req_doz,
+                                "Proto": full_proto,  # เก็บค่า proto ทั้งหมด
+                                "Proto Matched": False,  # ไม่มี pattern ID จึงไม่สามารถตรวจสอบได้
+                                "Item Fabric": current_item,
+                                "Fabric Color": current_col,
+                                "Width": current_width,
+                                "Part Name": part_name,
+                                "STD.(Yds.)": std_yds,
+                                "Trim Width": trim_width,
+                                "Lbs/Doz": lbs_doz,
+                                "Pattern ID": "N/A"  # ไม่มี pattern ID ในรูปแบบนี้
+                            }
+                            data.append(part_entry)
                 
                 i += 1
             
-            # Create DataFrame and add to collection
+            # สร้าง DataFrame และกรองข้อมูล
             if data:
                 df = pd.DataFrame(data)
+                
+                # ถ้ามีข้อมูลที่ตรงกับ proto 5 หลัก ให้เก็บเฉพาะข้อมูลเหล่านั้น
+                if proto_five_digit and df['Proto Matched'].any():
+                    df = df[df['Proto Matched'] == True]
+                
+                # ลบคอลัมภ์ชั่วคราว
+                df = df.drop('Proto Matched', axis=1)
+                
                 all_data.append(df)
         
         except Exception as e:
             print(f"Error processing file {file_path}: {e}")
     
-    # Combine all data frames
+    # รวม DataFrame ทั้งหมด
     if all_data:
         final_df = pd.concat(all_data, ignore_index=True)
         return final_df
     else:
         # Return empty DataFrame with expected columns
         columns = ["Assortment Order", "Lot", "Style", "Size", "Color Code", "Plan Qty", "Proto", 
-                  "Item Fabric", "Fabric Color", "Width", "Part Name", "STD.(Yds.)","Trim Width", "Lbs/Doz"]
+                  "Item Fabric", "Fabric Color", "Width", "Part Name", "STD.(Yds.)", 
+                  "Trim Width", "Lbs/Doz","Pattern ID"]
         return pd.DataFrame(columns=columns)
 
+def is_valid_part_name(part_name):
+    """
+    ตรวจสอบว่าชื่อ Part name ถูกต้องหรือไม่
+    จะคืนค่า True เฉพาะกรณีที่เป็นชื่อ Part จริงๆ เท่านั้น
+    """
+    # ข้อความว่างเปล่าหรือมีแต่ช่องว่างไม่ใช่ชื่อ Part ที่ถูกต้อง
+    if not part_name or part_name.isspace():
+        return False
+    
+    # กรองชื่อที่เป็นเส้นใต้ (underscores) เช่น "____ ____ ____"
+    if '_' in part_name:
+        return False
+    
+    # กรองกรณีที่มีแต่ตัวเลขและสัญลักษณ์พิเศษ
+    if re.match(r'^[\d\s\.\-\/]+$', part_name):
+        return False
+    
+    # กรณีที่เป็นตัวเลขตามด้วยตัวเลข เช่น "321 33.5 321 33.5"
+    number_pattern = r'^\d+(\.\d+)?\s+\d+(\.\d+)?(\s+\d+(\.\d+)?\s+\d+(\.\d+)?)*$'
+    if re.match(number_pattern, part_name):
+        return False
+    
+    # กรณีที่เป็นเฉพาะตัวเลขเช่น "584.4 482 584.4"
+    if all(part.replace('.', '').isdigit() or part.isspace() for part in re.split(r'[\s]+', part_name)):
+        return False
+    
+    # ต้องมีตัวอักษรอย่างน้อย 2 ตัวขึ้นไปจึงจะถือว่าเป็นชื่อ Part ที่ถูกต้อง
+    alpha_count = sum(c.isalpha() for c in part_name)
+    if alpha_count < 2:
+        return False
+    
+    # ผ่านการตรวจสอบทั้งหมด ถือว่าเป็นชื่อ Part ที่ถูกต้อง
+    return True
 
+        
 st.title(" Text File to Excel Converter")
 
-tab1, tab2 = st.tabs(["📦 Warehouse", "✂️ Cutting"])
+tab1, tab2 = st.tabs([" Warehouse", "✂️ Cutting"])
 
 with tab1:
     st.header("Upload Warehouse Files")

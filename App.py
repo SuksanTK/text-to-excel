@@ -312,7 +312,7 @@ def is_valid_part_name(part_name):
         
 st.title(" Text File to Excel Converter")
 
-tab1, tab2 = st.tabs(["📦 Warehouse", "✂️ Cutting"])
+tab1, tab2 = st.tabs(["📦️ Warehouse", "✂️ Cutting"])
 
 with tab1:
     st.header("Upload Warehouse Files")

@@ -3,6 +3,7 @@ import pandas as pd
 import re
 import os
 import tempfile
+import gc 
 
 def detect_format_wh(lines):
     for line in lines:
@@ -376,9 +377,13 @@ def match_part_name(raw_part_name, valid_part_names):
     # If we couldn't find a match, return None
     return None
         
-st.title(" Text File to Excel Converter")
+def cleanup_memory():
+    """ทำความสะอาดหน่วยความจำโดยเรียก garbage collector"""
+    gc.collect()
 
-tab1, tab2 = st.tabs([" Warehouse", "✂️ Cutting"])
+st.title("Text File to Excel Converter")
+
+tab1, tab2 = st.tabs(["📦 Warehouse", "✂️ Cutting"])
 
 with tab1:
     st.header("Upload Warehouse Files")
@@ -398,40 +403,82 @@ with tab1:
             st.error("⚠️ No supported formats found for this file!") 
             df_wh = None
 
+        # ล้างหน่วยความจำที่ไม่จำเป็น
+        del lines
+        cleanup_memory()
+
         if df_wh is not None:
             st.subheader(f"📊 Converted Data ({format_label})")
             st.dataframe(df_wh)
 
-            excel_file_wh = "WH_output.xlsx"
+            # สร้างไฟล์ Excel ชั่วคราว
+            excel_file_wh = f"WH_output_{format_label}.xlsx"
             df_wh.to_excel(excel_file_wh, index=False)
 
             with open(excel_file_wh, "rb") as file:
-                st.download_button("📥 Download WH (Excel)", file, file_name="WH_output.xlsx")
+                download_button = st.download_button(
+                    "📥 Download WH (Excel)", 
+                    file, 
+                    file_name=excel_file_wh
+                )
+                if download_button:
+                    # ล้างหน่วยความจำหลังจากดาวน์โหลด
+                    del df_wh
+                    cleanup_memory()
+            
+            # ลบไฟล์ชั่วคราวหลังการประมวลผล
+            if os.path.exists(excel_file_wh):
+                os.remove(excel_file_wh)
 
 with tab2:
     st.header("Upload Cutting Files")
     uploaded_files = st.file_uploader("📂 Upload Cutting files (.txt)", type=["txt"], accept_multiple_files=True)
 
     if uploaded_files:
-        all_dfs = []
-        for uploaded_file in uploaded_files:
-            with tempfile.NamedTemporaryFile(delete=False, suffix=".txt") as tmp_file:
-                tmp_file.write(uploaded_file.getvalue())
-                tmp_file_path = tmp_file.name
-
-            cutting_file_paths = [tmp_file_path]
-            df_cutting = process_cutting_files(cutting_file_paths)
-            all_dfs.append(df_cutting)
-
-            os.remove(tmp_file_path)
-
-        if all_dfs:
-            final_df = pd.concat(all_dfs, ignore_index=True)
+        temp_file_paths = []
+        try:
+            # สร้างไฟล์ชั่วคราวสำหรับประมวลผล
+            for uploaded_file in uploaded_files:
+                with tempfile.NamedTemporaryFile(delete=False, suffix=".txt") as tmp_file:
+                    tmp_file.write(uploaded_file.getvalue())
+                    temp_file_paths.append(tmp_file.name)
+            
+            # ประมวลผลไฟล์
+            df_cutting = process_cutting_files(temp_file_paths)
+            
             st.subheader("📊 Converted Data")
-            st.dataframe(final_df)
+            st.dataframe(df_cutting)
 
+            # สร้างไฟล์ Excel ชั่วคราว
             excel_file_cutting = "Cutting_output.xlsx"
-            final_df.to_excel(excel_file_cutting, index=False)
+            df_cutting.to_excel(excel_file_cutting, index=False)
 
             with open(excel_file_cutting, "rb") as file:
-                st.download_button("📥 Download Cutting (Excel)", file, file_name="Cutting_output.xlsx")
+                download_button = st.download_button(
+                    "📥 Download Cutting (Excel)", 
+                    file, 
+                    file_name=excel_file_cutting
+                )
+                if download_button:
+                    # ล้างหน่วยความจำหลังจากดาวน์โหลด
+                    del df_cutting
+                    cleanup_memory()
+            
+            # ลบไฟล์ Excel ชั่วคราว
+            if os.path.exists(excel_file_cutting):
+                os.remove(excel_file_cutting)
+                
+        finally:
+            # ลบไฟล์ชั่วคราวทั้งหมด
+            for tmp_file_path in temp_file_paths:
+                if os.path.exists(tmp_file_path):
+                    os.remove(tmp_file_path)
+            
+            # ทำความสะอาดหน่วยความจำ
+            cleanup_memory()
+
+# เพิ่มปุ่มทำความสะอาดหน่วยความจำด้วยตนเอง
+if st.sidebar.button("Clear Memory"):
+    # เรียก garbage collector ทั้งหมด
+    gc.collect()
+    st.sidebar.success("Memory cleared!")
